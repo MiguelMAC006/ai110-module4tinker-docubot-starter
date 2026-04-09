@@ -41,7 +41,10 @@ class DocuBot:
                 with open(path, "r", encoding="utf8") as f:
                     text = f.read()
                 filename = os.path.basename(path)
-                docs.append((filename, text))
+                for paragraph in text.split("\n\n"):
+                    paragraph = paragraph.strip()
+                    if paragraph:
+                        docs.append((filename, paragraph))
         return docs
 
     # -----------------------------------------------------------
@@ -64,7 +67,15 @@ class DocuBot:
         ignore punctuation if needed.
         """
         index = {}
-        # TODO: implement simple indexing
+        for filename, text in documents:
+            for word in text.lower().split():
+                word = word.strip(".,!?;:\"'()[]{}/#")
+                if not word:
+                    continue
+                if word not in index:
+                    index[word] = []
+                if filename not in index[word]:
+                    index[word].append(filename)
         return index
 
     # -----------------------------------------------------------
@@ -81,19 +92,30 @@ class DocuBot:
         - Count how many appear in the text
         - Return the count as the score
         """
-        # TODO: implement scoring
-        return 0
+        text_lower = text.lower()
+        score = 0
+        for word in query.lower().split():
+            word = word.strip(".,!?;:\"'()[]{}/#")
+            if word and word in text_lower:
+                score += 1
+        return score
 
-    def retrieve(self, query, top_k=3):
+    def retrieve(self, query, top_k=3, min_score=2):
         """
-        TODO (Phase 1):
         Use the index and scoring function to select top_k relevant document snippets.
+
+        Only returns chunks that meet min_score. Returns an empty list when
+        evidence is too weak, which causes answer methods to refuse.
 
         Return a list of (filename, text) sorted by score descending.
         """
-        results = []
-        # TODO: implement retrieval logic
-        return results[:top_k]
+        scored = []
+        for filename, text in self.documents:
+            score = self.score_document(query, text)
+            if score >= min_score:
+                scored.append((score, filename, text))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [(filename, text) for _, filename, text in scored[:top_k]]
 
     # -----------------------------------------------------------
     # Answering Modes
